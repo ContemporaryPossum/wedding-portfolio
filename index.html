@@ -546,11 +546,11 @@ noscript .fallback a { color: var(--ink); }
     instagram: "withframeflow",  // handle without the @
   };
 
-  // Background song. Save the track next to index.html under this name.
+  // Background song. Save the track next to index.html as music.mp3, or music.m4a (the format iTunes sells).
   // Until the file is there the book has no music; page turns and key clicks still make sound.
   const MUSIC = {
-    file: "music.mp3",
-    start: 44.8,    // seconds in: where "It had to be you" begins in Frank Sinatra's 1980 recording (3:56)
+    files: ["music.mp3", "music.m4a"],   // the first one found is played
+    start: 0,       // seconds in: this clip already begins at "It had to be you" (0:45 of the full 3:56 recording, which would need 44.8)
     volume: 0.75,
   };
 
@@ -1365,16 +1365,33 @@ noscript .fallback a { color: var(--ink); }
   };
   // the song file plays from the chorus and loops back to it
   const Song = {
-    el: null, wanted: false, blocked: false, missing: false, resumeOnShow: false, fadeTimer: 0,
+    el: null, file: null, finding: null, wanted: false, blocked: false, missing: false, resumeOnShow: false, fadeTimer: 0,
+    // look up which song file exists as the page loads, so the first tap can play it straight away
+    find() {
+      if (!this.finding) {
+        this.finding = (async () => {
+          for (const f of MUSIC.files) {
+            try { if ((await fetch(f, { method: "HEAD", cache: "no-store" })).ok) return f; } catch { /* try the next name */ }
+          }
+          return null;
+        })().then((f) => {
+          this.file = f;
+          if (f) this.get();
+          else { this.missing = true; console.warn(`No background song: add ${MUSIC.files.join(" or ")} next to index.html`); }
+          return f;
+        });
+      }
+      return this.finding;
+    },
     get() {
       if (this.el) return this.el;
       const a = new Audio();
       a.preload = "auto";
-      a.src = `${MUSIC.file}#t=${MUSIC.start}`;
+      a.src = `${this.file}#t=${MUSIC.start}`;
       a.volume = 0;
       a.addEventListener("loadedmetadata", () => { if (a.currentTime < MUSIC.start - 0.5) a.currentTime = MUSIC.start; });
       a.addEventListener("ended", () => { a.currentTime = MUSIC.start; if (this.wanted) a.play().catch(() => {}); });
-      a.addEventListener("error", () => { this.missing = true; console.warn(`Background song not found: add ${MUSIC.file} next to index.html`); });
+      a.addEventListener("error", () => { this.missing = true; console.warn(`The background song ${this.file} could not be played`); });
       this.el = a;
       return a;
     },
@@ -1390,6 +1407,7 @@ noscript .fallback a { color: var(--ink); }
     play() {
       this.wanted = true;
       if (this.missing) return;
+      if (!this.file) { this.find().then((f) => { if (f && this.wanted) this.play(); }); return; }
       const a = this.get();
       const started = a.play();
       if (!started || !started.then) return;
@@ -1414,7 +1432,7 @@ noscript .fallback a { color: var(--ink); }
     viaBlob() {
       if (this.blobbing) return;
       this.blobbing = true;
-      fetch(MUSIC.file)
+      fetch(this.file)
         .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
         .then((b) => {
           const a = this.el;
@@ -1803,6 +1821,7 @@ noscript .fallback a { color: var(--ink); }
 
   /* ---------- start ---------- */
   setSound(Sound.on, false);
+  Song.find();
   refreshWhatsApp();
   layout();
   const start = fromHash();
