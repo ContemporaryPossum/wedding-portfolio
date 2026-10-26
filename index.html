@@ -546,6 +546,14 @@ noscript .fallback a { color: var(--ink); }
     instagram: "withframeflow",  // handle without the @
   };
 
+  // Background song. Save the track next to index.html under this name.
+  // Until the file is there, a music-box Canon in D plays instead.
+  const MUSIC = {
+    file: "music.mp3",
+    start: 44.8,    // seconds in: where "It had to be you" begins in Frank Sinatra's 1980 recording (3:56)
+    volume: 0.75,
+  };
+
   const DESIGNS = [
     {
       slug: "damia-rayyan",
@@ -1378,7 +1386,9 @@ noscript .fallback a { color: var(--ink); }
       if (v !== 1) this.note(CANON.lines[0][chord], t + 0.004, 0.17, this.music, 3.2);
       if (v !== 0) this.note(CANON.lines[1][chord], t + 0.012, v === 2 ? 0.11 : 0.17, this.music, 3.2);
     },
-    startMusic() {
+    startMusic() { Song.play(); },
+    stopMusic() { Song.stop(); this.stopBox(); },
+    startBox() {
       if (!this.live() || this.playing) return;
       const c = this.ctx, now = c.currentTime;
       this.playing = true;
@@ -1393,7 +1403,7 @@ noscript .fallback a { color: var(--ink); }
       clearInterval(this.timer);
       pump(); this.timer = setInterval(pump, 150);
     },
-    stopMusic() {
+    stopBox() {
       if (!this.playing) return;
       this.playing = false; clearInterval(this.timer);
       const now = this.ctx.currentTime;
@@ -1402,6 +1412,72 @@ noscript .fallback a { color: var(--ink); }
       this.music.gain.linearRampToValueAtTime(0.0001, now + 0.9);
     },
   };
+  // the song file plays from the chorus and loops back to it; if the file is missing, the music box takes over
+  const Song = {
+    el: null, wanted: false, blocked: false, missing: false, resumeOnShow: false, fadeTimer: 0,
+    get() {
+      if (this.el) return this.el;
+      const a = new Audio();
+      a.preload = "auto";
+      a.src = `${MUSIC.file}#t=${MUSIC.start}`;
+      a.volume = 0;
+      a.addEventListener("loadedmetadata", () => { if (a.currentTime < MUSIC.start - 0.5) a.currentTime = MUSIC.start; });
+      a.addEventListener("ended", () => { a.currentTime = MUSIC.start; if (this.wanted) a.play().catch(() => {}); });
+      a.addEventListener("error", () => { this.missing = true; if (this.wanted) Sound.startBox(); });
+      this.el = a;
+      return a;
+    },
+    fade(to, ms, then) {
+      clearInterval(this.fadeTimer);
+      const a = this.el, from = a.volume, t0 = performance.now();
+      this.fadeTimer = setInterval(() => {
+        const p = Math.min(1, (performance.now() - t0) / ms);
+        a.volume = from + (to - from) * p;   // iPhone ignores volume and plays at full level
+        if (p >= 1) { clearInterval(this.fadeTimer); if (then) then(); }
+      }, 40);
+    },
+    play() {
+      this.wanted = true;
+      if (this.missing) { Sound.startBox(); return; }
+      const a = this.get();
+      const started = a.play();
+      if (!started || !started.then) return;
+      started.then(() => { this.blocked = false; this.atChorus(); }).catch((err) => {
+        const name = err && err.name;
+        if (name === "NotAllowedError") this.blocked = true;   // retried on the next tap
+        else if (name === "NotSupportedError") { this.missing = true; if (this.wanted) Sound.startBox(); }
+      });
+    },
+    stop() {
+      this.wanted = false; this.blocked = false;
+      if (this.el && !this.el.paused) this.fade(0, 700, () => this.el.pause());
+    },
+    // stay silent until the track is at the chorus, then fade in
+    atChorus() {
+      const a = this.el, ok = () => a.currentTime >= MUSIC.start - 1;
+      if (ok()) { this.fade(MUSIC.volume, 1400); return; }
+      try { a.currentTime = MUSIC.start; } catch { /* not seekable yet */ }
+      setTimeout(() => { if (ok()) this.fade(MUSIC.volume, 1400); else this.viaBlob(); }, 350);
+    },
+    // some hosts don't allow jumping inside a file: load it whole once, then jump to the chorus
+    viaBlob() {
+      if (this.blobbing) return;
+      this.blobbing = true;
+      fetch(MUSIC.file)
+        .then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status)))))
+        .then((b) => {
+          const a = this.el;
+          a.pause();
+          a.addEventListener("loadedmetadata", () => {
+            a.currentTime = MUSIC.start;
+            if (this.wanted) a.play().then(() => this.fade(MUSIC.volume, 1400)).catch(() => {});
+          }, { once: true });
+          a.src = URL.createObjectURL(b);
+        })
+        .catch(() => this.fade(MUSIC.volume, 1400));
+    },
+  };
+
   const soundBtn = document.getElementById("soundBtn");
   function setSound(on, fromUser = true) {
     Sound.on = on;
@@ -1423,11 +1499,17 @@ noscript .fallback a { color: var(--ink); }
     Sound.init();
     const onToggle = e.target && e.target.closest && e.target.closest('#soundBtn, [data-key="sound"]');
     if (!Sound.autoStarted && !onToggle) { Sound.autoStarted = true; Sound.startMusic(); }
+    else if (Song.wanted && Song.blocked) Song.play();
   }, true));
   document.addEventListener("visibilitychange", () => {
-    if (!Sound.ctx) return;
-    if (document.hidden) Sound.ctx.suspend().catch(() => {});
-    else if (Sound.on) Sound.ctx.resume().catch(() => {});
+    if (document.hidden) {
+      if (Sound.ctx) Sound.ctx.suspend().catch(() => {});
+      if (Song.el && !Song.el.paused) { Song.el.pause(); Song.resumeOnShow = true; }
+    } else if (Sound.on) {
+      if (Sound.ctx) Sound.ctx.resume().catch(() => {});
+      if (Song.resumeOnShow && Song.wanted) Song.el.play().catch(() => {});
+      Song.resumeOnShow = false;
+    }
   });
   try { if (localStorage.getItem("invitations-sound") === "off") Sound.on = false; } catch { /* storage blocked */ }
 
