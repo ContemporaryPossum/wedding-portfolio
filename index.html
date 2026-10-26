@@ -547,7 +547,7 @@ noscript .fallback a { color: var(--ink); }
   };
 
   // Background song. Save the track next to index.html under this name.
-  // Until the file is there, a music-box Canon in D plays instead.
+  // Until the file is there the book has no music; page turns and key clicks still make sound.
   const MUSIC = {
     file: "music.mp3",
     start: 44.8,    // seconds in: where "It had to be you" begins in Frank Sinatra's 1980 recording (3:56)
@@ -1283,16 +1283,9 @@ noscript .fallback a { color: var(--ink); }
     else if (e.key === " " && (e.target === document.body || e.target === stage)) { e.preventDefault(); e.shiftKey ? prev() : next(); }
   });
 
-  /* ---------- sound: page turns, key clicks and a music-box Canon in D, all generated ---------- */
-  // Pachelbel's Canon (public domain): an arpeggio over the eight-chord ground, with the two famous descending lines on top
-  const CANON = {
-    eighth: 0.5,
-    chords: [[62, 69, 78, 74], [57, 64, 73, 69], [59, 66, 74, 71], [54, 61, 69, 66], [55, 62, 71, 67], [62, 69, 78, 74], [55, 62, 71, 67], [57, 64, 73, 69]],
-    lines: [[90, 88, 86, 85, 83, 81, 83, 85], [86, 85, 83, 81, 79, 78, 79, 76]],
-  };
+  /* ---------- sound: page turns, key clicks and a chime are generated; the song is a file (MUSIC) ---------- */
   const Sound = {
-    on: true, ctx: null, noise: null, out: null, sfx: null, music: null,
-    playing: false, autoStarted: false, timer: 0, step: 0, nextT: 0,
+    on: true, ctx: null, noise: null, out: null, sfx: null, autoStarted: false,
     init() {
       if (!this.on) return;
       try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch { /* not supported */ }
@@ -1309,10 +1302,6 @@ noscript .fallback a { color: var(--ink); }
         comp.connect(c.destination);
         this.out = c.createGain(); this.out.connect(comp);
         this.sfx = c.createGain(); this.sfx.gain.value = 0.8; this.sfx.connect(this.out);
-        this.music = c.createGain(); this.music.gain.value = 0.0001; this.music.connect(this.out);
-        const verb = c.createConvolver(); verb.buffer = this.impulse(2.6);
-        const wet = c.createGain(); wet.gain.value = 0.5;
-        this.music.connect(verb); verb.connect(wet); wet.connect(this.out);
       }
       if (this.ctx.state !== "running") this.ctx.resume().catch(() => {});
       try { // a silent blip inside the tap is what unlocks audio on iPhone
@@ -1320,32 +1309,26 @@ noscript .fallback a { color: var(--ink); }
         s.buffer = this.ctx.createBuffer(1, 1, 22050); s.connect(this.ctx.destination); s.start(0);
       } catch { /* ignore */ }
     },
-    impulse(sec) {
-      const c = this.ctx, n = Math.floor(c.sampleRate * sec), b = c.createBuffer(2, n, c.sampleRate);
-      for (let ch = 0; ch < 2; ch++) {
-        const d = b.getChannelData(ch);
-        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3.2);
-      }
-      return b;
-    },
     live() { return this.on && !!this.ctx; },
     page(vol = 1) {
       if (!this.live()) return;
       const c = this.ctx, t = c.currentTime + 0.01;
       const src = c.createBufferSource(); src.buffer = this.noise; src.playbackRate.value = 0.9 + Math.random() * 0.2;
-      const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.6;
-      bp.frequency.setValueAtTime(1200, t); bp.frequency.linearRampToValueAtTime(4200, t + 0.22); bp.frequency.linearRampToValueAtTime(1800, t + 0.5);
+      // a soft paper swish: low, rounded and quiet, with a slow swell instead of a sharp attack
+      const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.5;
+      bp.frequency.setValueAtTime(700, t); bp.frequency.linearRampToValueAtTime(2000, t + 0.25); bp.frequency.linearRampToValueAtTime(900, t + 0.55);
+      const soft = c.createBiquadFilter(); soft.type = "lowpass"; soft.frequency.value = 2600;
       const g = c.createGain();
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.6 * vol, t + 0.09);
-      g.gain.exponentialRampToValueAtTime(0.2 * vol, t + 0.28); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
-      src.connect(bp).connect(g).connect(this.sfx);
-      src.start(t, Math.random() * 0.3); src.stop(t + 0.6);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.2 * vol, t + 0.14);
+      g.gain.exponentialRampToValueAtTime(0.09 * vol, t + 0.32); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.62);
+      src.connect(bp).connect(soft).connect(g).connect(this.sfx);
+      src.start(t, Math.random() * 0.3); src.stop(t + 0.66);
       const thud = c.createBufferSource(); thud.buffer = this.noise;
-      const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 700;
+      const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 380;
       const g2 = c.createGain();
-      g2.gain.setValueAtTime(0.0001, t + 0.42); g2.gain.exponentialRampToValueAtTime(0.5 * vol, t + 0.45); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.62);
+      g2.gain.setValueAtTime(0.0001, t + 0.44); g2.gain.exponentialRampToValueAtTime(0.17 * vol, t + 0.49); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.68);
       thud.connect(lp).connect(g2).connect(this.sfx);
-      thud.start(t + 0.42, Math.random() * 0.4); thud.stop(t + 0.64);
+      thud.start(t + 0.44, Math.random() * 0.4); thud.stop(t + 0.7);
     },
     key() {
       this.init();
@@ -1377,42 +1360,10 @@ noscript .fallback a { color: var(--ink); }
       const t = this.ctx.currentTime + 0.02;
       this.note(81, t, 0.2, this.sfx, 1.6); this.note(86, t + 0.13, 0.18, this.sfx, 2);
     },
-    schedule(step, t) {
-      const cycle = Math.floor(step / 32), chord = Math.floor((step % 32) / 4), k = step % 4;
-      const jitter = () => (Math.random() - 0.5) * 0.012;
-      this.note(CANON.chords[chord][k], t + jitter(), (k === 0 ? 0.16 : 0.11) * (0.85 + Math.random() * 0.15), this.music);
-      if (k !== 0 || cycle === 0) return;
-      const v = (cycle - 1) % 3;   // line one, line two, then both together
-      if (v !== 1) this.note(CANON.lines[0][chord], t + 0.004, 0.17, this.music, 3.2);
-      if (v !== 0) this.note(CANON.lines[1][chord], t + 0.012, v === 2 ? 0.11 : 0.17, this.music, 3.2);
-    },
     startMusic() { Song.play(); },
-    stopMusic() { Song.stop(); this.stopBox(); },
-    startBox() {
-      if (!this.live() || this.playing) return;
-      const c = this.ctx, now = c.currentTime;
-      this.playing = true;
-      this.music.gain.cancelScheduledValues(now);
-      this.music.gain.setValueAtTime(Math.max(0.0001, this.music.gain.value), now);
-      this.music.gain.linearRampToValueAtTime(0.9, now + 2.5);
-      this.nextT = Math.max(now + 0.08, this.nextT);
-      const pump = () => {
-        if (!this.playing) return;
-        while (this.nextT < this.ctx.currentTime + 0.6) { this.schedule(this.step, this.nextT); this.nextT += CANON.eighth; this.step++; }
-      };
-      clearInterval(this.timer);
-      pump(); this.timer = setInterval(pump, 150);
-    },
-    stopBox() {
-      if (!this.playing) return;
-      this.playing = false; clearInterval(this.timer);
-      const now = this.ctx.currentTime;
-      this.music.gain.cancelScheduledValues(now);
-      this.music.gain.setValueAtTime(Math.max(0.0001, this.music.gain.value), now);
-      this.music.gain.linearRampToValueAtTime(0.0001, now + 0.9);
-    },
+    stopMusic() { Song.stop(); },
   };
-  // the song file plays from the chorus and loops back to it; if the file is missing, the music box takes over
+  // the song file plays from the chorus and loops back to it
   const Song = {
     el: null, wanted: false, blocked: false, missing: false, resumeOnShow: false, fadeTimer: 0,
     get() {
@@ -1423,7 +1374,7 @@ noscript .fallback a { color: var(--ink); }
       a.volume = 0;
       a.addEventListener("loadedmetadata", () => { if (a.currentTime < MUSIC.start - 0.5) a.currentTime = MUSIC.start; });
       a.addEventListener("ended", () => { a.currentTime = MUSIC.start; if (this.wanted) a.play().catch(() => {}); });
-      a.addEventListener("error", () => { this.missing = true; if (this.wanted) Sound.startBox(); });
+      a.addEventListener("error", () => { this.missing = true; console.warn(`Background song not found: add ${MUSIC.file} next to index.html`); });
       this.el = a;
       return a;
     },
@@ -1438,14 +1389,14 @@ noscript .fallback a { color: var(--ink); }
     },
     play() {
       this.wanted = true;
-      if (this.missing) { Sound.startBox(); return; }
+      if (this.missing) return;
       const a = this.get();
       const started = a.play();
       if (!started || !started.then) return;
       started.then(() => { this.blocked = false; this.atChorus(); }).catch((err) => {
         const name = err && err.name;
         if (name === "NotAllowedError") this.blocked = true;   // retried on the next tap
-        else if (name === "NotSupportedError") { this.missing = true; if (this.wanted) Sound.startBox(); }
+        else if (name === "NotSupportedError") this.missing = true;
       });
     },
     stop() {
