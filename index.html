@@ -372,6 +372,26 @@ button { font: inherit; color: inherit; }
 .steps span { margin-top: .9cqw; font: 300 max(12px, 2.9cqw)/1.45 var(--f-text); color: var(--ink-2); }
 .turn-hint { margin: 0; max-width: 36cqw; text-align: right; font: italic 300 max(11px, 2.5cqw)/1.4 var(--f-text); color: var(--ink-2); }
 
+/* ---------- why couples choose it ---------- */
+.names.xs { font-size: 9.4cqw; }
+.gains { list-style: none; margin: 5cqw 0 0; padding: 0; display: grid; gap: 3.8cqw; }
+.gains li { position: relative; padding-left: 4.6cqw; }
+.gains li::before { content: ""; position: absolute; left: 0; top: 1.7cqw; width: 1.3cqw; height: 1.3cqw; rotate: 45deg; background: var(--gold-hi); }
+.gains b { display: block; font: 400 5cqw/1.15 var(--f-display); color: var(--ink); }
+.gains span { display: block; margin-top: .9cqw; font: 300 max(12px, 2.85cqw)/1.5 var(--f-text); color: var(--ink-2); text-wrap: pretty; }
+.seal-wrap { flex: 1; min-height: 0; display: grid; place-items: center; padding: 4cqw 0; }
+.seal { position: relative; width: min(56cqw, 100%); aspect-ratio: 1; }
+.seal svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.seal text { font: 600 9px var(--f-ui); }
+.seal-ring { transform-box: view-box; transform-origin: 100px 100px; animation: spin 80s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.seal-mid { position: absolute; inset: 0; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.seal-mid strong { font: italic 400 19cqw/.85 var(--f-display); font-weight: 400; }
+.seal-mid span { margin-top: 1cqw; font: 600 max(8.5px, 1.75cqw)/1 var(--f-ui); letter-spacing: .34em; text-transform: uppercase; color: var(--gold); }
+.promises { display: grid; gap: 3.4cqw; padding-top: 4cqw; border-top: 1px solid var(--hair); }
+.promise b { display: block; font: 400 5.4cqw/1.1 var(--f-display); color: var(--ink); }
+.promise span { display: block; margin-top: .9cqw; font: 300 max(12px, 2.85cqw)/1.5 var(--f-text); color: var(--ink-2); }
+
 /* ---------- console (after the footer on thibaut.cool) ---------- */
 .con-main { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
 .console {
@@ -472,7 +492,7 @@ noscript .fallback { position: fixed; inset: 0; z-index: 99; overflow: auto; pad
 noscript .fallback a { color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
-  .book-wrap, .js .foil, .led, .lcd-track, .live.is-live .dot { animation: none !important; }
+  .book-wrap, .js .foil, .led, .lcd-track, .live.is-live .dot, .seal-ring { animation: none !important; }
   .js .rv, .js .ln > span, .js .rule, .js .device, .js .key, .js .console { transition: none !important; }
 }
 </style>
@@ -564,7 +584,7 @@ noscript .fallback a { color: var(--ink); }
       date: "Sabtu, 19 Disember 2026 · Kuala Lumpur",
       short: "Songket doors",
       desc: "Two songket doors part to reveal the invitation. Guests scroll through the bride and groom, the date and venue, the full aturcara and a photo gallery, then confirm attendance in a tap.",
-      features: ["Songket door opening", "Aturcara and countdown", "Waze and Google Maps", "Add to calendar", "RSVP and WhatsApp contact"],
+      features: ["Songket door opening", "Aturcara and countdown", "Waze and Google Maps", "Add to calendar", "RSVP list and WhatsApp contact"],
       palette: ["#4A1220", "#C9A44E", "#F4E8D8"],
       type: "Bodoni Moda, Jost & Amiri",
     },
@@ -590,7 +610,7 @@ noscript .fallback a { color: var(--ink); }
       date: "Jumaat, 31 Disember 2027 · Kuala Lumpur",
       short: "Wax seal, with music",
       desc: "Guests break a wax seal to open the invitation, and the music begins. Their story unfolds in four chapters, a countdown runs to the day, and the aturcara carries on to the first minute of the new year.",
-      features: ["Wax seal opening with music", "Kisah Kita in four chapters", "Countdown and aturcara", "Photo gallery", "RSVP with a ready-to-send message"],
+      features: ["Wax seal opening with music", "Kisah Kita in four chapters", "Countdown and aturcara", "Photo gallery", "RSVP list with guest count"],
       palette: ["#3D0910", "#C9A45C", "#F6ECDB"],
       type: "Imperial Script, Bodoni Moda & Cinzel",
     },
@@ -622,6 +642,15 @@ noscript .fallback a { color: var(--ink); }
     },
   ];
 
+  // Promises on the "Why couples choose it" spread. Only promise what you can deliver every time.
+  const PROMISE = {
+    seal: ["48", "hours"],
+    items: [
+      { title: "Live within 48 hours", text: "Send us your details and your invitation link is ready to share within two days." },
+      { title: "Free edits until you're happy", text: "Change a time, a photo or a line of text as often as you need." },
+    ],
+  };
+
   /* ------------------------------------------------------------------ */
 
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -633,8 +662,10 @@ noscript .fallback a { color: var(--ink); }
   const splitPrice = (p) => { const m = /^([A-Za-z]+)\s*(.+)$/.exec(p); return m ? [m[1], m[2]] : ["", p]; };
 
   const D = DESIGNS.length;
-  const P_TURN = 3 + 2 * D;          // page number of "Your invitation"
-  const P_LAST = 4 + 2 * D;          // page number of the console page
+  const P_WHY = 3 + 2 * D;           // page number of "Why couples choose it"
+  const P_TURN = 5 + 2 * D;          // page number of "Your invitation"
+  const P_LAST = 6 + 2 * D;          // page number of the console page
+  const S_WHY = D + 2;               // spread that shows "Why couples choose it"; the contact spread follows it
   const spreadOf = (i) => i + 2;     // spread that shows design i
   const priceMin = DESIGNS.map((d) => d.price).sort((a, b) => parseFloat(splitPrice(a)[1].replace(/,/g, "")) - parseFloat(splitPrice(b)[1].replace(/,/g, "")))[0] || "";
 
@@ -690,14 +721,21 @@ noscript .fallback a { color: var(--ink); }
             </button>
           </li>`).join("")}
           <li class="rv" style="--d:${160 + D * 80}">
-            <button class="toc-row" type="button" data-go="${D + 2}">
+            <button class="toc-row" type="button" data-go="${S_WHY}">
+              <span class="tn">&#10023;</span>
+              <span class="tt"><span>Why couples choose it</span><i class="lead"></i><b>${P_WHY}</b></span>
+              <span class="ts"><span>What you get &middot; Our promise</span></span>
+            </button>
+          </li>
+          <li class="rv" style="--d:${240 + D * 80}">
+            <button class="toc-row" type="button" data-go="${S_WHY + 1}">
               <span class="tn">&#10022;</span>
               <span class="tt"><span>Your invitation</span><i class="lead"></i><b>${P_TURN}</b></span>
               <span class="ts"><span>How it works &middot; Get in touch</span></span>
             </button>
           </li>
         </ol>
-        <p class="toc-note rv" style="--d:${260 + D * 80}">Every design is a live website. Tap the phone on its page to open it.</p>
+        <p class="toc-note rv" style="--d:${340 + D * 80}">Every design is a live website. Tap the phone on its page to open it.</p>
       </div>
       <span class="folio">2</span>
     </div>`;
@@ -776,6 +814,54 @@ noscript .fallback a { color: var(--ink); }
     </div>`;
   };
 
+  // what couples actually want, said plainly
+  const whyHTML = () => `
+    <div class="page">
+      <div class="pg">
+        <p class="rhead"><span>Why couples choose it</span><span>For the two of you</span></p>
+        <div class="it-main">
+          <p class="kick rv">What you actually get</p>
+          <h2 class="names xs"><span class="ln"><span style="--d:80">Less chasing,</span></span><span class="ln"><span style="--d:190"><em>more celebrating.</em></span></span></h2>
+          <i class="rule" aria-hidden="true"></i>
+          <p class="desc rv" style="--d:420">Nobody needs another website. You need your guests to show up, an accurate headcount, and no chasing people on WhatsApp.</p>
+          <ul class="gains">
+            <li class="rv" style="--d:560"><b>Know exactly who's coming.</b><span>All RSVPs in one place, with the headcount added up for you. No more chasing 200 guests on WhatsApp.</span></li>
+            <li class="rv" style="--d:680"><b>Stop answering the same questions.</b><span>Location, schedule and parking are all on one link.</span></li>
+            <li class="rv" style="--d:800"><b>Look good in front of your guests.</b><span>Your link is the first impression of your wedding. Make it a beautiful one.</span></li>
+          </ul>
+        </div>
+      </div>
+      <span class="folio">${P_WHY}</span>
+    </div>`;
+
+  const promiseHTML = () => {
+    const ring = `${PROMISE.items.map((p) => p.title.toUpperCase()).join(" · ")} · `;
+    return `
+    <div class="page">
+      <div class="pg promise-pg">
+        <p class="rhead"><span>Our promise</span><span>For every couple</span></p>
+        <div class="seal-wrap">
+          <div class="seal rv" style="--d:120">
+            <svg viewBox="0 0 200 200" aria-hidden="true">
+              <defs>
+                <linearGradient id="g-seal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a6d3b"/><stop offset=".45" stop-color="#e3cf9f"/><stop offset="1" stop-color="#8a6d3b"/></linearGradient>
+                <path id="seal-path" d="M100,100 m-80,0 a80,80 0 1,1 160,0 a80,80 0 1,1 -160,0"/>
+              </defs>
+              <circle cx="100" cy="100" r="97" fill="none" stroke="url(#g-seal)" stroke-width=".7"/>
+              <circle cx="100" cy="100" r="64" fill="none" stroke="url(#g-seal)" stroke-width=".7"/>
+              <g class="seal-ring"><text fill="url(#g-seal)" textLength="500" lengthAdjust="spacing"><textPath href="#seal-path">${esc(ring)}</textPath></text></g>
+            </svg>
+            <p class="seal-mid"><strong class="foil">${esc(PROMISE.seal[0])}</strong><span>${esc(PROMISE.seal[1])}</span></p>
+          </div>
+        </div>
+        <div class="promises">
+          ${PROMISE.items.map((p, k) => `<div class="promise rv" style="--d:${520 + k * 120}"><b>${esc(p.title)}</b><span>${esc(p.text)}</span></div>`).join("")}
+        </div>
+      </div>
+      <span class="folio">${P_WHY + 1}</span>
+    </div>`;
+  };
+
   const KEYS = [
     { id: "wa", label: "WhatsApp", cls: "w2 k-gold", aria: "Message on WhatsApp", contact: "whatsapp" },
     { id: "ig", label: "IG", cls: "", aria: "Open Instagram", contact: "instagram" },
@@ -833,7 +919,7 @@ noscript .fallback a { color: var(--ink); }
   const book = document.getElementById("book");
   const html = [coverHTML(), dedicationHTML(), contentsHTML()];
   DESIGNS.forEach((d, i) => html.push(textHTML(d, i), plateHTML(d, i)));
-  html.push(turnHTML(), consoleHTML(), backHTML());
+  html.push(whyHTML(), promiseHTML(), turnHTML(), consoleHTML(), backHTML());
 
   const N = html.length / 2;   // leaves
   const MAX = N - 1;           // last spread you can open to
@@ -1045,7 +1131,7 @@ noscript .fallback a { color: var(--ink); }
   const pager = document.getElementById("pager");
   const srLive = document.getElementById("srLive");
   const chapters = document.getElementById("chapters");
-  const navItems = [{ go: 0, label: "Cover" }, { go: 1, label: "Contents" }, ...DESIGNS.map((d, i) => ({ go: spreadOf(i), label: ROMAN[i] || String(i + 1), aria: pair(d) })), { go: MAX, label: "Contact" }];
+  const navItems = [{ go: 0, label: "Cover" }, { go: 1, label: "Contents" }, ...DESIGNS.map((d, i) => ({ go: spreadOf(i), label: ROMAN[i] || String(i + 1), aria: pair(d) })), { go: S_WHY, label: "Why us", aria: "Why couples choose it" }, { go: MAX, label: "Contact" }];
   chapters.innerHTML = navItems.map((n) => `<button type="button" data-go="${n.go}"${n.aria ? ` aria-label="${esc(n.aria)}"` : ""}>${esc(n.label)}</button>`).join("");
   document.getElementById("hint").textContent = coarse ? "Swipe or tap the arrows to turn" : "Drag the pages, scroll, or use the arrow keys";
 
@@ -1053,6 +1139,7 @@ noscript .fallback a { color: var(--ink); }
     if (sp === 0) return { key: "", small: "Volume I", label: "Cover" };
     if (sp === 1) return { key: "contents", small: "Page 1–2", label: "Contents" };
     if (sp === MAX) return { key: "contact", small: "Get in touch", label: "Your invitation" };
+    if (sp === S_WHY) return { key: "why", small: "For the two of you", label: "Why couples choose it" };
     const i = sp - 2, d = DESIGNS[i];
     return { key: d.slug, small: `Design ${ROMAN[i] || i + 1} · ${d.price}`, label: pair(d), design: i };
   }
@@ -1814,6 +1901,7 @@ noscript .fallback a { color: var(--ink); }
     const h = decodeURIComponent(location.hash.slice(1));
     if (h === "contents") return [1, "right"];
     if (h === "contact") return [MAX, "right"];
+    if (h === "why") return [S_WHY, "left"];
     const i = DESIGNS.findIndex((d) => d.slug === h);
     return i >= 0 ? [spreadOf(i), "left"] : null;
   }
